@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Morning News Intelligence</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;">
+    <tr>
+      <td align="center" style="padding:24px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:#1e293b;border-radius:12px 12px 0 0;padding:28px 28px 20px;">
+              <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Morning News Intelligence</h1>
+              <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">{{ date }} &middot; Your daily briefing</p>
+            </td>
+          </tr>
+
+          <!-- World News -->
+          <tr>
+            <td style="background:#ffffff;padding:4px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:16px 28px 12px;border-left:3px solid #2563eb;">
+                    <h2 style="margin:0;font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:0.5px;">World News</h2>
+                  </td>
+                </tr>
+                {% if world_news %}
+                  {% for article in world_news %}
+                  <tr>
+                    <td style="padding:8px 28px 8px 31px;{% if not loop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          {% if article.image %}
+                          <td width="72" style="vertical-align:top;padding-right:12px;">
+                            <img src="{{ article.image }}" alt="" width="72" height="48" style="display:block;width:72px;height:48px;object-fit:cover;border-radius:6px;">
+                          </td>
+                          {% endif %}
+                          <td style="vertical-align:top;">
+                            <p style="margin:0 0 3px;font-size:14px;font-weight:500;line-height:1.5;color:#1e293b;">{{ article.title }}</p>
+                            <p style="margin:0;font-size:12px;color:#94a3b8;">
+                              {{ article.source }}
+                              {% if article.link %}&middot; <a href="{{ article.link }}" target="_blank" style="color:#2563eb;text-decoration:underline;">Read</a>{% endif %}
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr><td style="padding:8px 28px 12px 31px;font-size:13px;color:#94a3b8;">No articles available.</td></tr>
+                {% endif %}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Business News -->
+          <tr><td style="background:#f4f5f7;height:8px;"></td></tr>
+          <tr>
+            <td style="background:#ffffff;padding:4px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:16px 28px 12px;border-left:3px solid #059669;">
+                    <h2 style="margin:0;font-size:13px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.5px;">Business News</h2>
+                  </td>
+                </tr>
+                {% if business_news %}
+                  {% for article in business_news %}
+                  <tr>
+                    <td style="padding:8px 28px 8px 31px;{% if not loop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          {% if article.image %}
+                          <td width="72" style="vertical-align:top;padding-right:12px;">
+                            <img src="{{ article.image }}" alt="" width="72" height="48" style="display:block;width:72px;height:48px;object-fit:cover;border-radius:6px;">
+                          </td>
+                          {% endif %}
+                          <td style="vertical-align:top;">
+                            <p style="margin:0 0 3px;font-size:14px;font-weight:500;line-height:1.5;color:#1e293b;">{{ article.title }}</p>
+                            <p style="margin:0;font-size:12px;color:#94a3b8;">
+                              {{ article.source }}
+                              {% if article.link %}&middot; <a href="{{ article.link }}" target="_blank" style="color:#059669;text-decoration:underline;">Read</a>{% endif %}
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr><td style="padding:8px 28px 12px 31px;font-size:13px;color:#94a3b8;">No articles available.</td></tr>
+                {% endif %}
+              </table>
+            </td>
+          </tr>
+
+          <!-- AI & Tech -->
+          <tr><td style="background:#f4f5f7;height:8px;"></td></tr>
+          <tr>
+            <td style="background:#ffffff;padding:4px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:16px 28px 12px;border-left:3px solid #7c3aed;">
+                    <h2 style="margin:0;font-size:13px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;">AI &amp; Tech</h2>
+                  </td>
+                </tr>
+                {% if ai_tech %}
+                  {% for article in ai_tech %}
+                  <tr>
+                    <td style="padding:8px 28px 8px 31px;{% if not loop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          {% if article.image %}
+                          <td width="72" style="vertical-align:top;padding-right:12px;">
+                            <img src="{{ article.image }}" alt="" width="72" height="48" style="display:block;width:72px;height:48px;object-fit:cover;border-radius:6px;">
+                          </td>
+                          {% endif %}
+                          <td style="vertical-align:top;">
+                            <p style="margin:0 0 3px;font-size:14px;font-weight:500;line-height:1.5;color:#1e293b;">{{ article.title }}</p>
+                            <p style="margin:0;font-size:12px;color:#94a3b8;">
+                              {{ article.source }}
+                              {% if article.link %}&middot; <a href="{{ article.link }}" target="_blank" style="color:#7c3aed;text-decoration:underline;">Read</a>{% endif %}
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr><td style="padding:8px 28px 12px 31px;font-size:13px;color:#94a3b8;">No articles available.</td></tr>
+                {% endif %}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Trend -->
+          <tr><td style="background:#f4f5f7;height:8px;"></td></tr>
+          <tr>
+            <td style="background:#ffffff;border-radius:0;padding:20px 28px;">
+              <div style="display:inline-block;background:#fef3c7;color:#d97706;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Trending</div>
+              {% if trend.trend %}
+                <h2 style="margin:0 0 6px;font-size:16px;font-weight:700;color:#1e293b;">{{ trend.trend }}</h2>
+                {% if trend.evidence %}
+                <ul style="margin:6px 0 8px;padding:0 0 0 18px;font-size:13px;color:#475569;line-height:1.6;">
+                  {% for item in trend.evidence %}
+                  <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+                {% endif %}
+                <p style="margin:0;font-size:12px;color:#64748b;">
+                  Confidence:
+                  <span style="font-weight:600;{% if trend.confidence == 'high' %}color:#059669{% elif trend.confidence == 'medium' %}color:#d97706{% else %}color:#dc2626{% endif %}">{{ trend.confidence|capitalize }}</span>
+                </p>
+              {% else %}
+                <p style="margin:0;font-size:13px;color:#94a3b8;">No trend data available.</p>
+              {% endif %}
+            </td>
+          </tr>
+
+          <!-- Deep Dive -->
+          <tr><td style="background:#f4f5f7;height:8px;"></td></tr>
+          <tr>
+            <td style="background:#ffffff;border-radius:0;padding:20px 28px;">
+              <div style="display:inline-block;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Deep Dive</div>
+              {% if deep_dive.headline %}
+                <h2 style="margin:0 0 6px;font-size:16px;font-weight:700;color:#1e293b;">{{ deep_dive.headline }}</h2>
+                <p style="margin:0 0 12px;font-size:13px;color:#475569;line-height:1.5;font-style:italic;">{{ deep_dive.reason }}</p>
+                {% if deep_dive.analysis %}
+                  {% for point in deep_dive.analysis %}
+                  <div style="padding:8px 12px;margin-bottom:6px;background:#f8fafc;border-left:3px solid #dc2626;border-radius:4px;">
+                    <p style="margin:0;font-size:13px;color:#334155;line-height:1.5;">{{ point }}</p>
+                  </div>
+                  {% endfor %}
+                {% endif %}
+              {% else %}
+                <p style="margin:0;font-size:13px;color:#94a3b8;">No deep dive available.</p>
+              {% endif %}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#1e293b;border-radius:0 0 12px 12px;padding:20px 28px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#94a3b8;">Morning News Intelligence &middot; Generated {{ date }}</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
