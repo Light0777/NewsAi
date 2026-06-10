@@ -5,9 +5,16 @@ on:
     - cron: "30 0 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: daily-news
+  cancel-in-progress: false
+
 jobs:
   build-and-send:
     runs-on: ubuntu-latest
+
+    env:
+      PYTHONUNBUFFERED: 1
 
     steps:
       - name: Checkout repository

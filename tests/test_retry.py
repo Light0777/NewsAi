@@ -6,6 +6,7 @@ import requests
 
 from processors.retry import (
     MAX_AI_CALLS_PER_RUN,
+    MAX_RETRY_DELAY,
     RetryConfig,
     _calculate_delay,
     _check_call_limit,
@@ -31,18 +32,16 @@ def _mock_response(status: int = 200, data: dict[str, Any] | None = None) -> Mag
 class TestRetryConfig:
     def test_defaults(self) -> None:
         config = RetryConfig()
-        assert config.max_attempts == 4
+        assert config.max_attempts == 3
         assert config.base_delay == 2.0
         assert config.timeout == 30.0
         assert config.retryable_statuses == frozenset({429, 500, 502, 503, 504})
-        assert config.jitter is True
 
     def test_custom_values(self) -> None:
-        config = RetryConfig(max_attempts=3, base_delay=1.0, timeout=15.0, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=1.0, timeout=15.0)
         assert config.max_attempts == 3
         assert config.base_delay == 1.0
         assert config.timeout == 15.0
-        assert config.jitter is False
 
 
 class TestShouldRetryOnStatus:
@@ -75,22 +74,17 @@ class TestShouldRetryOnStatus:
 
 
 class TestCalculateDelay:
-    def test_without_jitter(self) -> None:
-        config = RetryConfig(jitter=False)
+    def test_exponential_backoff(self) -> None:
+        config = RetryConfig(base_delay=2.0)
         assert _calculate_delay(1, config) == 2.0
         assert _calculate_delay(2, config) == 4.0
         assert _calculate_delay(3, config) == 8.0
-        assert _calculate_delay(4, config) == 16.0
 
-    def test_with_jitter_is_in_range(self) -> None:
-        config = RetryConfig(jitter=True)
-        for attempt in range(1, 5):
-            delay = _calculate_delay(attempt, config)
-            min_expected = config.base_delay * (2 ** (attempt - 1))
-            max_expected = config.base_delay * (2 ** attempt)
-            assert min_expected <= delay <= max_expected, (
-                f"Attempt {attempt}: delay {delay} not in [{min_expected}, {max_expected}]"
-            )
+    def test_capped_at_max(self) -> None:
+        config = RetryConfig(base_delay=10.0)
+        assert _calculate_delay(1, config) == 10.0
+        assert _calculate_delay(2, config) == 20.0
+        assert _calculate_delay(3, config) == 20.0  # capped
 
 
 class TestCallLimit:
@@ -100,7 +94,7 @@ class TestCallLimit:
     def test_call_counter_increments(self) -> None:
         _check_call_limit()
         _check_call_limit()
-        assert True  # no error
+        assert True
 
     def test_call_limit_raises(self) -> None:
         reset_call_counter()
@@ -114,7 +108,7 @@ class TestCallLimit:
         for _ in range(MAX_AI_CALLS_PER_RUN):
             _check_call_limit()
         reset_call_counter()
-        _check_call_limit()  # should not raise
+        _check_call_limit()
         assert True
 
 
@@ -123,7 +117,7 @@ class TestRetryRequest:
         reset_call_counter()
 
     def test_success_first_attempt(self) -> None:
-        config = RetryConfig(max_attempts=4, jitter=False)
+        config = RetryConfig(max_attempts=3)
         mock = MagicMock(return_value=_mock_response(200))
 
         result = retry_request(mock, "TestProvider", config)
@@ -132,7 +126,7 @@ class TestRetryRequest:
         mock.assert_called_once()
 
     def test_success_after_429_retry(self) -> None:
-        config = RetryConfig(max_attempts=4, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(
             side_effect=[
                 _mock_response(429),
@@ -146,7 +140,7 @@ class TestRetryRequest:
         assert mock.call_count == 2
 
     def test_success_after_timeout_retry(self) -> None:
-        config = RetryConfig(max_attempts=4, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(
             side_effect=[
                 requests.Timeout("timeout"),
@@ -160,7 +154,7 @@ class TestRetryRequest:
         assert mock.call_count == 2
 
     def test_429_retry_applies_retry_after_header(self) -> None:
-        config = RetryConfig(max_attempts=3, base_delay=10.0, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=10.0)
         resp = _mock_response(429)
         resp.headers = {"Retry-After": "0.01"}
         mock = MagicMock(
@@ -175,7 +169,7 @@ class TestRetryRequest:
         assert mock.call_count == 2
 
     def test_401_authentication_failure_no_retry(self) -> None:
-        config = RetryConfig(max_attempts=4, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(return_value=_mock_response(401))
 
         with pytest.raises(requests.exceptions.HTTPError):
@@ -183,7 +177,7 @@ class TestRetryRequest:
         mock.assert_called_once()
 
     def test_400_bad_request_no_retry(self) -> None:
-        config = RetryConfig(max_attempts=4, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(return_value=_mock_response(400))
 
         with pytest.raises(requests.exceptions.HTTPError):
@@ -191,7 +185,7 @@ class TestRetryRequest:
         mock.assert_called_once()
 
     def test_403_forbidden_no_retry(self) -> None:
-        config = RetryConfig(max_attempts=4, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(return_value=_mock_response(403))
 
         with pytest.raises(requests.exceptions.HTTPError):
@@ -199,7 +193,7 @@ class TestRetryRequest:
         mock.assert_called_once()
 
     def test_402_quota_exhausted_raises_value_error(self) -> None:
-        config = RetryConfig(max_attempts=4, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(return_value=_mock_response(402))
 
         with pytest.raises(ValueError, match="quota exhausted"):
@@ -207,7 +201,7 @@ class TestRetryRequest:
         mock.assert_called_once()
 
     def test_max_retries_exceeded_for_429(self) -> None:
-        config = RetryConfig(max_attempts=3, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(
             return_value=_mock_response(429)
         )
@@ -217,7 +211,7 @@ class TestRetryRequest:
         assert mock.call_count == 3
 
     def test_max_retries_exceeded_for_connection_error(self) -> None:
-        config = RetryConfig(max_attempts=2, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=2, base_delay=0.01)
         mock = MagicMock(
             side_effect=requests.ConnectionError("connection refused")
         )
@@ -227,7 +221,7 @@ class TestRetryRequest:
         assert mock.call_count == 2
 
     def test_max_retries_exceeded_for_timeout(self) -> None:
-        config = RetryConfig(max_attempts=2, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=2, base_delay=0.01)
         mock = MagicMock(
             side_effect=requests.Timeout("timed out")
         )
@@ -240,18 +234,16 @@ class TestRetryRequest:
         reset_call_counter()
         config = RetryConfig(max_attempts=1, base_delay=0.01)
 
-        # Exhaust the limit
         for _ in range(MAX_AI_CALLS_PER_RUN):
             mock = MagicMock(return_value=_mock_response(200))
             retry_request(mock, "TestProvider", config)
 
-        # Next call should fail
         mock = MagicMock(return_value=_mock_response(200))
         with pytest.raises(RuntimeError, match="AI call limit"):
             retry_request(mock, "TestProvider", config)
 
     def test_success_after_connection_error_retry(self) -> None:
-        config = RetryConfig(max_attempts=3, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(
             side_effect=[
                 requests.ConnectionError("connection reset"),
@@ -264,7 +256,7 @@ class TestRetryRequest:
         assert mock.call_count == 2
 
     def test_503_retry_then_success(self) -> None:
-        config = RetryConfig(max_attempts=3, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(
             side_effect=[
                 _mock_response(503),
@@ -277,7 +269,7 @@ class TestRetryRequest:
         assert mock.call_count == 2
 
     def test_500_retry_then_success(self) -> None:
-        config = RetryConfig(max_attempts=3, base_delay=0.01, jitter=False)
+        config = RetryConfig(max_attempts=3, base_delay=0.01)
         mock = MagicMock(
             side_effect=[
                 _mock_response(500),

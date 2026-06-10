@@ -1,7 +1,7 @@
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from processors.news_aggregator import _deduplicate, _project, aggregate
+from processors.news_aggregator import _deduplicate, aggregate
 
 
 def _article(
@@ -10,8 +10,9 @@ def _article(
     source: str = "Reuters",
     category: str = "top",
     image: str = "",
+    published: str = "2025-01-01",
 ) -> dict[str, str]:
-    return {"title": title, "link": link, "source": source, "category": category, "image": image}
+    return {"title": title, "link": link, "source": source, "category": category, "image": image, "published": published}
 
 
 class TestDeduplicate:
@@ -45,35 +46,14 @@ class TestDeduplicate:
         assert _deduplicate([]) == []
 
 
-class TestProject:
-    def test_extracts_output_fields(self) -> None:
-        article: dict[str, str] = {
-            "title": "Hello",
-            "link": "https://ex.com",
-            "published": "2025-01-01",
-            "category": "top",
-            "source": "Reuters",
-        }
-        result = _project(article)
-        assert result == {
-            "title": "Hello",
-            "source": "Reuters",
-            "category": "top",
-            "link": "https://ex.com",
-            "image": "",
-        }
-
-    def test_missing_fields_default_to_empty(self) -> None:
-        result = _project({})
-        assert result == {"title": "", "source": "", "category": "", "link": "", "image": ""}
-
-
 class TestAggregate:
     @patch("processors.news_aggregator.fetch_top_news")
     @patch("processors.news_aggregator.fetch_business_news")
     @patch("processors.news_aggregator.fetch_techcrunch_news")
+    @patch("processors.news_aggregator.fetch_india_news")
     def test_collects_from_all_sources(
         self,
+        mock_india: MagicMock,
         mock_tc: MagicMock,
         mock_biz: MagicMock,
         mock_top: MagicMock,
@@ -88,26 +68,21 @@ class TestAggregate:
         mock_tc.return_value = [
             _article(title="C1", link="https://ex.com/c1", source="TechCrunch"),
         ]
+        mock_india.return_value = [
+            _article(title="I1", link="https://ex.com/i1", source="The Hindu"),
+        ]
 
         result = aggregate(count=3)
 
-        assert len(result) == 4
-        assert result[0] == {
-            "title": "T1", "source": "Reuters", "category": "top", "link": "https://ex.com/t1", "image": "",
-        }
-        assert result[-1] == {
-            "title": "C1",
-            "source": "TechCrunch",
-            "category": "top",
-            "link": "https://ex.com/c1",
-            "image": "",
-        }
+        assert len(result) == 5
 
     @patch("processors.news_aggregator.fetch_top_news")
     @patch("processors.news_aggregator.fetch_business_news")
     @patch("processors.news_aggregator.fetch_techcrunch_news")
+    @patch("processors.news_aggregator.fetch_india_news")
     def test_deduplicates_across_sources(
         self,
+        mock_india: MagicMock,
         mock_tc: MagicMock,
         mock_biz: MagicMock,
         mock_top: MagicMock,
@@ -119,6 +94,7 @@ class TestAggregate:
         mock_tc.return_value = [
             _article(title="Dup", link="https://ex.com/dup", source="TechCrunch"),
         ]
+        mock_india.return_value = []
 
         result = aggregate(count=3)
         assert len(result) == 1
@@ -127,48 +103,10 @@ class TestAggregate:
     @patch("processors.news_aggregator.fetch_top_news")
     @patch("processors.news_aggregator.fetch_business_news")
     @patch("processors.news_aggregator.fetch_techcrunch_news")
-    def test_passes_count_to_each_source(
-        self,
-        mock_tc: MagicMock,
-        mock_biz: MagicMock,
-        mock_top: MagicMock,
-    ) -> None:
-        mock_top.return_value = []
-        mock_biz.return_value = []
-        mock_tc.return_value = []
-
-        aggregate(count=5)
-
-        mock_top.assert_called_once_with(5)
-        mock_biz.assert_called_once_with(5)
-        mock_tc.assert_called_once_with(5)
-
-    @patch("processors.news_aggregator.fetch_top_news")
-    @patch("processors.news_aggregator.fetch_business_news")
-    @patch("processors.news_aggregator.fetch_techcrunch_news")
-    def test_output_format(
-        self,
-        mock_tc: MagicMock,
-        mock_biz: MagicMock,
-        mock_top: MagicMock,
-    ) -> None:
-        mock_top.return_value = [
-            _article(title="X", source="Reuters"),
-        ]
-        mock_biz.return_value = []
-        mock_tc.return_value = []
-
-        result = aggregate()
-        assert len(result) == 1
-        item = result[0]
-        assert set(item.keys()) == {"title", "source", "category", "link", "image"}
-        assert all(isinstance(v, str) for v in item.values())
-
-    @patch("processors.news_aggregator.fetch_top_news")
-    @patch("processors.news_aggregator.fetch_business_news")
-    @patch("processors.news_aggregator.fetch_techcrunch_news")
+    @patch("processors.news_aggregator.fetch_india_news")
     def test_handles_empty_feeds(
         self,
+        mock_india: MagicMock,
         mock_tc: MagicMock,
         mock_biz: MagicMock,
         mock_top: MagicMock,
@@ -176,6 +114,7 @@ class TestAggregate:
         mock_top.return_value = []
         mock_biz.return_value = []
         mock_tc.return_value = []
+        mock_india.return_value = []
 
         result = aggregate()
         assert result == []

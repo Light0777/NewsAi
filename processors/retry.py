@@ -11,6 +11,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 MAX_AI_CALLS_PER_RUN = 25
+MAX_RETRY_DELAY: float = 20.0
 _ai_call_counter: int = 0
 
 
@@ -30,13 +31,12 @@ def reset_call_counter() -> None:
 
 @dataclass
 class RetryConfig:
-    max_attempts: int = 4
+    max_attempts: int = 3
     base_delay: float = 2.0
     timeout: float = 30.0
     retryable_statuses: frozenset[int] = field(
         default_factory=lambda: frozenset({429, 500, 502, 503, 504})
     )
-    jitter: bool = True
 
 
 def _should_retry_on_status(status: int, config: RetryConfig) -> bool:
@@ -44,11 +44,8 @@ def _should_retry_on_status(status: int, config: RetryConfig) -> bool:
 
 
 def _calculate_delay(attempt: int, config: RetryConfig) -> float:
-    if not config.jitter:
-        return config.base_delay * (2 ** (attempt - 1))
-    min_delay = config.base_delay * (2 ** (attempt - 1))
-    max_delay = config.base_delay * (2 ** attempt)
-    return random.uniform(min_delay, max_delay)
+    delay = config.base_delay * (2 ** (attempt - 1))
+    return min(delay, MAX_RETRY_DELAY)
 
 
 def retry_request(

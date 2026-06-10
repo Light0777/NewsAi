@@ -8,64 +8,81 @@ from processors.summarizer import AIProvider, create_provider
 
 logger = logging.getLogger(__name__)
 
-DEEP_DIVE_PROMPT: str = (
-    "You are a senior financial analyst. Below is today's collection of news articles.\n\n"
-    "{articles}\n\n"
-    "Select the single most important story from the list above.\n"
-    'Return a JSON object with exactly three keys:\n'
-    '  - "headline": the full headline of the chosen article.\n'
-    '  - "reason": one concise sentence explaining why this story was chosen over the others.\n'
-    '  - "analysis": an array of exactly three strings covering:\n'
-    '      1. Business impact — how this affects companies, industries, or operations.\n'
-    '      2. Market impact — how this influences financial markets, investors, or valuations.\n'
-    '      3. Future implications — what this means going forward (regulation, trends, geopolitics).\n\n'
-    "Each analysis point should be 1–2 sentences."
+AI_DEEP_DIVE_PROMPT: str = (
+    "You are an AI industry analyst. Provide a deep dive analysis on this article.\n\n"
+    "Title: {title}\n"
+    "Text: {text}\n\n"
+    'Return a JSON object with exactly these keys:\n'
+    '  - "title": the original headline\n'
+    '  - "what_happened": a 2-3 line explanation of what happened\n'
+    '  - "who_is_involved": who is involved (OpenAI, Google, Meta, NVIDIA, Anthropic, etc.)\n'
+    '  - "why_it_matters": why this matters in the AI race\n\n'
+    "Only return the JSON object, no other text."
+)
+
+BUSINESS_DEEP_DIVE_PROMPT: str = (
+    "You are a financial analyst. Provide a deep dive analysis on this article.\n\n"
+    "Title: {title}\n"
+    "Text: {text}\n\n"
+    'Return a JSON object with exactly these keys:\n'
+    '  - "title": the original headline\n'
+    '  - "company_or_trend": the company or macro trend involved\n'
+    '  - "financial_implication": the financial or market implication (1-2 sentences)\n'
+    '  - "future_impact": what this means going forward (1-2 sentences)\n\n'
+    "Only return the JSON object, no other text."
 )
 
 
-def _format_articles(articles: list[dict[str, str]]) -> str:
-    lines: list[str] = []
-    for i, article in enumerate(articles, 1):
-        title = article.get("title", "(no title)")
-        source = article.get("source", "unknown")
-        category = article.get("category", "")
-        lines.append(f"{i}. [{source}] {title}  [{category}]")
-    return "\n".join(lines)
-
-
-def _parse_response(content: str) -> dict[str, Any]:
+def _parse_deep_dive(content: str) -> dict[str, Any]:
     cleaned = content.strip()
     if cleaned.startswith("```"):
         cleaned = cleaned.split("\n", 1)[-1]
         cleaned = cleaned.rsplit("```", 1)[0].strip()
 
-    parsed = json.loads(cleaned)
-
-    analysis = parsed.get("analysis", [])
-    if not isinstance(analysis, list):
-        analysis = [str(analysis)]
-
-    return {
-        "headline": str(parsed.get("headline", "")),
-        "reason": str(parsed.get("reason", "")),
-        "analysis": [str(p) for p in analysis],
-    }
+    return json.loads(cleaned)
 
 
-def select_deep_dive(
-    articles: list[dict[str, str]],
+def ai_deep_dive(
+    article: dict[str, str],
+    text: str,
     provider: AIProvider | None = None,
 ) -> dict[str, Any]:
-    if not articles:
-        raise ValueError("At least one article is required for deep dive selection")
-
     provider = provider or create_provider()
-    formatted = _format_articles(articles)
-    prompt = DEEP_DIVE_PROMPT.format(articles=formatted)
-
+    title = article.get("title", "")
+    prompt = AI_DEEP_DIVE_PROMPT.format(title=title, text=text)
     try:
         raw = provider.generate(prompt)
-        return _parse_response(raw)
+        result = _parse_deep_dive(raw)
+        result.setdefault("title", title)
+        return result
     except (json.JSONDecodeError, KeyError, ValueError) as exc:
-        logger.error("Deep dive parsing failed: %s", exc)
-        raise
+        logger.error("AI deep dive failed for '%s': %s", title, exc)
+        return {
+            "title": title,
+            "what_happened": "Summary unavailable due to API limit",
+            "who_is_involved": "",
+            "why_it_matters": "",
+        }
+
+
+def business_deep_dive(
+    article: dict[str, str],
+    text: str,
+    provider: AIProvider | None = None,
+) -> dict[str, Any]:
+    provider = provider or create_provider()
+    title = article.get("title", "")
+    prompt = BUSINESS_DEEP_DIVE_PROMPT.format(title=title, text=text)
+    try:
+        raw = provider.generate(prompt)
+        result = _parse_deep_dive(raw)
+        result.setdefault("title", title)
+        return result
+    except (json.JSONDecodeError, KeyError, ValueError) as exc:
+        logger.error("Business deep dive failed for '%s': %s", title, exc)
+        return {
+            "title": title,
+            "company_or_trend": "Summary unavailable due to API limit",
+            "financial_implication": "",
+            "future_impact": "",
+        }

@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from datetime import date
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-from processors.email_renderer import build_and_render, render_email
+from processors.email_renderer import render_email
 
 
 class TestRenderEmail:
@@ -17,67 +15,56 @@ class TestRenderEmail:
         html = render_email(mail_date="2025-07-15")
         assert "2025-07-15" in html
 
-    def test_includes_article_title(self) -> None:
+    def test_includes_local_article(self) -> None:
         html = render_email(
-            world_news=[{"title": "Test Story", "source": "Reuters", "link": "https://ex.com"}]
+            local_news=[{"title": "Local Story", "summary": "Details", "why_it_matters": "Important", "source": "The Hindu", "link": "https://ex.com"}]
         )
-        assert "Test Story" in html
+        assert "Local Story" in html
+        assert "Details" in html
+        assert "Important" in html
         assert "https://ex.com" in html
 
-    def test_includes_trend(self) -> None:
+    def test_includes_global_article(self) -> None:
         html = render_email(
-            trend={"trend": "AI Boom", "evidence": ["A", "B"], "confidence": "high"}
+            global_news=[{"title": "Global Story", "summary": "Details", "why_it_matters": "Important", "source": "BBC", "link": "https://ex.com"}]
         )
-        assert "AI Boom" in html
+        assert "Global Story" in html
 
-    def test_includes_deep_dive(self) -> None:
+    def test_includes_ai_deep_dive(self) -> None:
         html = render_email(
-            deep_dive={
-                "headline": "Big Story",
-                "reason": "It matters",
-                "analysis": ["Point one", "Point two"],
+            ai_dive={
+                "title": "AI Breakthrough",
+                "what_happened": "New model released",
+                "who_is_involved": "OpenAI",
+                "why_it_matters": "Changes AI race",
             }
         )
-        assert "Big Story" in html
-        assert "Point one" in html
-        assert "Point two" in html
+        assert "AI Breakthrough" in html
+        assert "New model released" in html
+        assert "OpenAI" in html
+        assert "Changes AI race" in html
+
+    def test_includes_business_deep_dive(self) -> None:
+        html = render_email(
+            business_dive={
+                "title": "Market Rally",
+                "company_or_trend": "S&P 500 up",
+                "financial_implication": "Investors bullish",
+                "future_impact": "Continued growth expected",
+            }
+        )
+        assert "Market Rally" in html
+        assert "S&amp;P 500 up" in html
+        assert "Investors bullish" in html
+        assert "Continued growth expected" in html
 
     def test_shows_empty_state_for_missing_sections(self) -> None:
         html = render_email()
-        assert "No articles available" in html
-        assert "No trend data available" in html
-        assert "No deep dive available" in html
+        assert "No local news available" in html
+        assert "No global news available" in html
+        assert "No AI deep dive available" in html
+        assert "No business deep dive available" in html
 
     def test_date_object_formatted(self) -> None:
         html = render_email(mail_date=date(2025, 12, 25))
         assert "2025-12-25" in html
-
-
-class TestBuildAndRender:
-    @patch("processors.email_renderer.aggregate_news")
-    @patch("processors.email_renderer.load_last_n_days")
-    @patch("processors.email_renderer.detect_trends")
-    @patch("processors.email_renderer.select_deep_dive")
-    def test_builds_complete_email(
-        self,
-        mock_deep: MagicMock,
-        mock_trend: MagicMock,
-        mock_history: MagicMock,
-        mock_agg: MagicMock,
-    ) -> None:
-        mock_agg.return_value = [
-            {"title": "World News", "category": "top", "source": "Reuters", "link": "https://ex.com/w"},
-            {"title": "Biz News", "category": "business", "source": "Reuters", "link": "https://ex.com/b"},
-            {"title": "TC Story", "category": "tech", "source": "TechCrunch", "link": "https://ex.com/t"},
-        ]
-        mock_history.return_value = [{"title": "Old Story"}]
-        mock_trend.return_value = {"trend": "Cloud", "evidence": ["A"], "confidence": "medium"}
-        mock_deep.return_value = {"headline": "Deep", "reason": "Why", "analysis": ["Impact"]}
-
-        html = build_and_render()
-
-        assert "World News" in html
-        assert "Biz News" in html
-        assert "TC Story" in html
-        assert "Cloud" in html
-        assert "Deep" in html
