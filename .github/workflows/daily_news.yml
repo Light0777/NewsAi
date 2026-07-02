@@ -1,45 +1,45 @@
-name: Daily News Intelligence
+# name: Daily News Intelligence
 
-on:
-  schedule:
-    - cron: "30 23 * * *"
-  workflow_dispatch:
+# on:
+#   schedule:
+#     - cron: "30 23 * * *"
+#   workflow_dispatch:
 
-concurrency:
-  group: daily-news
-  cancel-in-progress: false
+# concurrency:
+#   group: daily-news
+#   cancel-in-progress: false
 
-jobs:
-  build-and-send:
-    runs-on: ubuntu-latest
+# jobs:
+#   build-and-send:
+#     runs-on: ubuntu-latest
 
-    env:
-      PYTHONUNBUFFERED: 1
+#     env:
+#       PYTHONUNBUFFERED: 1
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
+#       - name: Set up Python 3.12
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: "3.12"
+#           cache: "pip"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+#       - name: Install dependencies
+#         run: pip install -r requirements.txt
 
-      - name: Create .env file from secrets
-        run: |
-          cat <<EOF > .env
-          AI_PROVIDER=${{ secrets.AI_PROVIDER }}
-          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-          EMAIL_PROVIDER=${{ secrets.EMAIL_PROVIDER }}
-          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
-          EMAIL_RECIPIENT=${{ secrets.EMAIL_RECIPIENT }}
-          SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
-          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
-          EOF
+#       - name: Create .env file from secrets
+#         run: |
+#           cat <<EOF > .env
+#           AI_PROVIDER=${{ secrets.AI_PROVIDER }}
+#           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+#           EMAIL_PROVIDER=${{ secrets.EMAIL_PROVIDER }}
+#           EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+#           EMAIL_RECIPIENT=${{ secrets.EMAIL_RECIPIENT }}
+#           SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
+#           SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+#           EOF
 
-      - name: Run morning news pipeline
-        run: python main.py
+#       - name: Run morning news pipeline
+#         run: python main.py
